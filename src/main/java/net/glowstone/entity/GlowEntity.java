@@ -17,7 +17,10 @@ import net.glowstone.entity.physics.EntityBoundingBox;
 import net.glowstone.net.message.play.entity.*;
 import net.glowstone.net.message.play.player.InteractEntityMessage;
 import net.glowstone.util.Position;
-import org.bukkit.*;
+import org.bukkit.EntityEffect;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.World.Environment;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -669,39 +672,57 @@ public abstract class GlowEntity implements Entity {
     /**
      * Velocity reduction applied each tick.
      */
-    protected static final double AIR_DRAG = 0.99;
+    protected static final double AIR_DRAG = -0.02;
 
     /**
      * Velocity reduction applied each tick.
      */
-    protected static final double LIQUID_DRAG = 0.8;
+    protected static final double LIQUID_DRAG = -0.2;
 
     /**
      * Gravity acceleration applied each tick.
      */
-    protected static final Vector GRAVITY = new Vector(0, -0.05, 0);
+    protected static final Vector GRAVITY = new Vector(0, -32, 0);
 
     protected void pulsePhysics() {
-        Vector clonedVel = getVelocity();
+        Vector acceleration = GRAVITY.clone();
 
         if (location.getBlock().isLiquid()) {
-            clonedVel.multiply(LIQUID_DRAG);
+            acceleration.add(getVelocity().multiply(LIQUID_DRAG));
         } else {
-            clonedVel.multiply(AIR_DRAG);
-        }
-        clonedVel.add(GRAVITY);
-
-        Location velLoc = location.clone().add(clonedVel);
-        if (!velLoc.getBlock().getType().isSolid()) {
-            setVelocity(clonedVel);
-            location.add(velLoc);
-        } else {
-            setVelocity(new Vector());
+            acceleration.add(getVelocity().multiply(AIR_DRAG));
         }
 
-        // make sure bounding box is up to date
-        if (boundingBox != null) {
+        Vector pos = getVelocity().add(acceleration.clone().multiply(0.05).multiply(0.5)).multiply(0.05);
+
+        Location position = getLocation().add(pos);
+
+        if (boundingBox == null) {
+            // less accurate calculation if no bounding box is present
+            for (BlockFace face : new BlockFace[]{BlockFace.EAST, BlockFace.WEST, BlockFace.SOUTH, BlockFace.NORTH, BlockFace.DOWN, BlockFace.SELF,
+                    BlockFace.NORTH_EAST, BlockFace.NORTH_WEST, BlockFace.SOUTH_EAST, BlockFace.SOUTH_WEST}) {
+                if (!getLocation().getBlock().getRelative(face).getType().isSolid()) {
+                    setRawLocation(position);
+                    velocity.add(acceleration.multiply(0.05));
+                }
+            }
+        } else {
+            // make sure bounding box is up to date
             boundingBox.setCenter(location.getX(), location.getY(), location.getZ());
+            // bounding box-based calculation
+            EntityBoundingBox futureBounds = new EntityBoundingBox(boundingBox.getSize().getX(), boundingBox.getSize().getY());
+            futureBounds.setCenter(position.getX(), position.getY(), position.getZ());
+            Vector min = futureBounds.minCorner, max = futureBounds.maxCorner;
+            for (int x = min.getBlockX(); x <= max.getBlockX(); ++x) {
+                for (int y = min.getBlockY(); y <= max.getBlockY(); ++y) {
+                    for (int z = min.getBlockZ(); z <= max.getBlockZ(); ++z) {
+                        if (!Material.getMaterial(world.getBlockTypeIdAt(x, y, z)).isSolid()) {
+                            setRawLocation(position);
+                            velocity.add(acceleration.multiply(0.05));
+                        }
+                    }
+                }
+            }
         }
     }
 
