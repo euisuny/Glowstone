@@ -17,6 +17,7 @@ import net.glowstone.net.message.play.entity.EntityHeadRotationMessage;
 import net.glowstone.net.message.play.entity.EntityRemoveEffectMessage;
 import net.glowstone.util.InventoryUtil;
 import net.glowstone.util.Position;
+import net.glowstone.util.RayUtil;
 import net.glowstone.util.SoundUtil;
 import net.glowstone.util.loot.LootData;
 import net.glowstone.util.loot.LootingManager;
@@ -666,6 +667,17 @@ public abstract class GlowLivingEntity extends GlowEntity implements LivingEntit
 
         // apply damage
         amount = event.getFinalDamage();
+
+        if (cause == DamageCause.ENTITY_ATTACK && source != null) {
+            Vector distance = RayUtil.distanceToHead(((LivingEntity) source).getEyeLocation(), getLocation());
+
+            Vector rayLength = RayUtil.getVelocityRay(distance);
+
+            Vector currentVelocity = getVelocity();
+            currentVelocity.add(rayLength);
+            setVelocity(currentVelocity);
+        }
+
         lastDamage = amount;
         setHealth(health - amount);
         playEffect(EntityEffect.HURT);

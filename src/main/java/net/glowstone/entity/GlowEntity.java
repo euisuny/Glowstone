@@ -682,17 +682,22 @@ public abstract class GlowEntity implements Entity {
     protected static final Vector GRAVITY = new Vector(0, -0.05, 0);
 
     protected void pulsePhysics() {
-        Location velLoc = location.clone().add(getVelocity());
-        if (!velLoc.getBlock().getType().isSolid()) {
-            setRawLocation(velLoc);
-        }
+        Vector clonedVel = getVelocity();
 
         if (location.getBlock().isLiquid()) {
-            velocity.multiply(LIQUID_DRAG);
+            clonedVel.multiply(LIQUID_DRAG);
         } else {
-            velocity.multiply(AIR_DRAG);
+            clonedVel.multiply(AIR_DRAG);
         }
-        velocity.add(GRAVITY);
+        clonedVel.add(GRAVITY);
+
+        Location velLoc = location.clone().add(clonedVel);
+        if (!velLoc.getBlock().getType().isSolid()) {
+            setVelocity(clonedVel);
+            location.add(velLoc);
+        } else {
+            setVelocity(new Vector());
+        }
 
         // make sure bounding box is up to date
         if (boundingBox != null) {
