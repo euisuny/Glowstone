@@ -669,9 +669,12 @@ public abstract class GlowLivingEntity extends GlowEntity implements LivingEntit
         amount = event.getFinalDamage();
 
         if (cause == DamageCause.ENTITY_ATTACK && source != null) {
-            Vector distance = RayUtil.distanceToHead(((LivingEntity) source).getEyeLocation(), getLocation());
+            Vector distance = RayUtil.distanceToHead(getLocation(), ((LivingEntity) source).getEyeLocation());
 
-            Vector rayLength = RayUtil.getVelocityRay(distance);
+            Vector rayLength = RayUtil.getVelocityRay(distance).normalize();
+
+            rayLength.multiply(amount / 2 + 6);
+            rayLength.add(new Vector(0, 2, 0));
 
             Vector currentVelocity = getVelocity();
             currentVelocity.add(rayLength);

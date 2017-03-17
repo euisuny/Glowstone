@@ -153,7 +153,11 @@ public class GlowFallingBlock extends GlowEntity implements FallingBlock {
         }
 
         Location nextBlock = location.clone().add(getVelocity());
-        if (nextBlock.getBlock().getType().isSolid()) {
+        if (!nextBlock.getBlock().getType().isSolid()) {
+            velocity.add(GRAVITY);
+            location.add(getVelocity());
+            velocity.multiply(DRAG);
+        } else {
             if (supportingBlock(location.getBlock().getType())) {
                 boolean replaceBlock;
                 switch (location.getBlock().getType()) {

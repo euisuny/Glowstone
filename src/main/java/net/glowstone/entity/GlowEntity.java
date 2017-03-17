@@ -312,6 +312,18 @@ public abstract class GlowEntity implements Entity {
         velocityChanged = true;
     }
 
+    public void setGravityAcceleration(Vector gravity) {
+        this.gravityAcceleration = gravity;
+    }
+
+    public void setDrag(double drag, boolean liquid) {
+        if (liquid) {
+            liquidDrag = drag;
+        } else {
+            airDrag = drag;
+        }
+    }
+
     @Override
     public boolean teleport(Location location) {
         checkNotNull(location, "location cannot be null");
@@ -672,58 +684,123 @@ public abstract class GlowEntity implements Entity {
     /**
      * Velocity reduction applied each tick.
      */
-    protected static final double AIR_DRAG = -0.02;
+    protected double airDrag = -0.02;
 
     /**
      * Velocity reduction applied each tick.
      */
-    protected static final double LIQUID_DRAG = -0.2;
+    protected double liquidDrag = -0.2;
 
     /**
      * Gravity acceleration applied each tick.
      */
-    protected static final Vector GRAVITY = new Vector(0, -32, 0);
+    protected Vector gravityAcceleration = new Vector(0, -32, 0);
 
     protected void pulsePhysics() {
-        Vector acceleration = GRAVITY.clone();
+        Vector acceleration = gravityAcceleration.clone();
+
+        Vector velocity = getVelocity().add(acceleration.clone().multiply(0.05)); // vf = v0 + a * t
 
         if (location.getBlock().isLiquid()) {
-            acceleration.add(getVelocity().multiply(LIQUID_DRAG));
+            acceleration.add(velocity.clone().multiply(liquidDrag));
         } else {
-            acceleration.add(getVelocity().multiply(AIR_DRAG));
+            acceleration.add(velocity.clone().multiply(airDrag));
         }
 
-        Vector pos = getVelocity().add(acceleration.clone().multiply(0.05).multiply(0.5)).multiply(0.05);
-
+        Vector pos = getVelocity().add(acceleration.clone().multiply(0.05).multiply(0.5)).multiply(0.05); // x = v * t + 1/2 a * t^2
         Location position = getLocation().add(pos);
 
         if (boundingBox == null) {
             // less accurate calculation if no bounding box is present
             for (BlockFace face : new BlockFace[]{BlockFace.EAST, BlockFace.WEST, BlockFace.SOUTH, BlockFace.NORTH, BlockFace.DOWN, BlockFace.SELF,
                     BlockFace.NORTH_EAST, BlockFace.NORTH_WEST, BlockFace.SOUTH_EAST, BlockFace.SOUTH_WEST}) {
-                if (!getLocation().getBlock().getRelative(face).getType().isSolid()) {
-                    setRawLocation(position);
-                    velocity.add(acceleration.multiply(0.05));
+                if (position.getBlock().getRelative(face).getType().isSolid()) {
+                    if (face.getModX() != 0) {
+                        pos.setX(0);
+                    }
+                    if (face.getModY() != 0) {
+                        pos.setY(0);
+                    }
+                    if (face.getModZ() != 0) {
+                        pos.setZ(0);
+                    }
+                }
+                if (getLocation().getBlock().getRelative(face).getType().isSolid()) {
+                    if (face.getModX() != 0) {
+                        pos.setX(0);
+                    }
+                    if (face.getModY() != 0) {
+                        pos.setY(0);
+                    }
+                    if (face.getModZ() != 0) {
+                        pos.setZ(0);
+                    }
                 }
             }
         } else {
             // make sure bounding box is up to date
             boundingBox.setCenter(location.getX(), location.getY(), location.getZ());
-            // bounding box-based calculation
-            EntityBoundingBox futureBounds = new EntityBoundingBox(boundingBox.getSize().getX(), boundingBox.getSize().getY());
-            futureBounds.setCenter(position.getX(), position.getY(), position.getZ());
-            Vector min = futureBounds.minCorner, max = futureBounds.maxCorner;
+            Vector min = boundingBox.minCorner, max = boundingBox.maxCorner;
             for (int x = min.getBlockX(); x <= max.getBlockX(); ++x) {
                 for (int y = min.getBlockY(); y <= max.getBlockY(); ++y) {
                     for (int z = min.getBlockZ(); z <= max.getBlockZ(); ++z) {
-                        if (!Material.getMaterial(world.getBlockTypeIdAt(x, y, z)).isSolid()) {
-                            setRawLocation(position);
-                            velocity.add(acceleration.multiply(0.05));
+                        if (Material.getMaterial(world.getBlockTypeIdAt(x, y, z)).isSolid()) {
+                            int length = max.getBlockX() - min.getBlockX();
+                            int centerX = min.getBlockX() + length / 2;
+                            if (pos.getX() > 0 && x >= centerX || pos.getX() < 0 && y <= centerX) {
+                                pos.setX(0);
+                                acceleration.setX(0);
+                            }
+                            int height = max.getBlockY() - min.getBlockY();
+                            int centerH = min.getBlockY() + height / 2;
+                            if (pos.getY() > 0 && y >= centerH || pos.getY() < 0 && y <= centerH) {
+                                pos.setY(0);
+                                acceleration.setY(0);
+                            }
+                            int width = max.getBlockZ() - min.getBlockZ();
+                            int centerZ = min.getBlockZ() + width / 2;
+                            if (pos.getZ() > 0 && x >= centerZ || pos.getZ() < 0 && y <= centerZ) {
+                                pos.setZ(0);
+                                acceleration.setZ(0);
+                            }
+                        }
+                    }
+                }
+            }
+            EntityBoundingBox futureBounds = new EntityBoundingBox(boundingBox.getSize().getX(), boundingBox.getSize().getY());
+            futureBounds.setCenter(position.getX(), position.getY(), position.getZ());
+            Vector futureMin = futureBounds.minCorner, futureMax = futureBounds.maxCorner;
+            for (int x = futureMin.getBlockX(); x <= futureMax.getBlockX(); ++x) {
+                for (int y = futureMin.getBlockY(); y <= futureMax.getBlockY(); ++y) {
+                    for (int z = futureMin.getBlockZ(); z <= futureMax.getBlockZ(); ++z) {
+                        if (Material.getMaterial(world.getBlockTypeIdAt(x, y, z)).isSolid()) {
+                            int length = max.getBlockX() - min.getBlockX();
+                            int centerX = min.getBlockX() + length / 2;
+                            if (pos.getX() > 0 && x >= centerX || pos.getX() < 0 && y <= centerX) {
+                                pos.setX(0);
+                                acceleration.setX(0);
+                            }
+                            int height = max.getBlockY() - min.getBlockY();
+                            int centerH = min.getBlockY() + height / 2;
+                            if (pos.getY() > 0 && y >= centerH || pos.getY() < 0 && y <= centerH) {
+                                pos.setY(0);
+                                acceleration.setY(0);
+                            }
+                            int width = max.getBlockZ() - min.getBlockZ();
+                            int centerZ = min.getBlockZ() + width / 2;
+                            if (pos.getZ() > 0 && x >= centerZ || pos.getZ() < 0 && y <= centerZ) {
+                                pos.setZ(0);
+                                acceleration.setZ(0);
+                            }
                         }
                     }
                 }
             }
         }
+
+        position = getLocation().add(pos);
+        setRawLocation(position);
+        this.velocity.add(acceleration.multiply(0.05));
     }
 
     @Override

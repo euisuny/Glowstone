@@ -32,21 +32,6 @@ public class GlowItem extends GlowEntity implements Item {
     private static final int LIFETIME = 5 * 60 * 20;
 
     /**
-     * Velocity reduction applied each tick.
-     */
-    private static final double AIR_DRAG = 0.99;
-
-    /**
-     * Velocity reduction applied each tick.
-     */
-    private static final double LIQUID_DRAG = 0.8;
-
-    /**
-     * Gravity acceleration applied each tick.
-     */
-    private static final Vector GRAVITY = new Vector(0, -0.05, 0);
-
-    /**
      * The remaining delay until this item may be picked up.
      */
     private int pickupDelay;
@@ -65,6 +50,9 @@ public class GlowItem extends GlowEntity implements Item {
     public GlowItem(Location location, ItemStack item) {
         super(location);
         setItemStack(item);
+        setGravityAcceleration(new Vector(0, -16, 0));
+        setDrag(0.98, false);
+        setDrag(0.8, true);
         setBoundingBox(0.25, 0.25);
         pickupDelay = 20;
     }
@@ -155,7 +143,20 @@ public class GlowItem extends GlowEntity implements Item {
             setRawLocation(location.clone().add(0, 0.2, 0), false);
         }
 
-        super.pulsePhysics();
+        if (!location.clone().add(getVelocity()).getBlock().getType().isSolid()) {
+            location.add(getVelocity());
+            if (location.getBlock().isLiquid()) {
+                 velocity.multiply(liquidDrag);
+            } else {
+                velocity.multiply(airDrag);
+            }
+            velocity.add(gravityAcceleration);
+        }
+
+        if (boundingBox != null) {
+            // make sure bounding box is up to date
+            boundingBox.setCenter(location.getX(), location.getY(), location.getZ());
+        }
     }
 
     @Override

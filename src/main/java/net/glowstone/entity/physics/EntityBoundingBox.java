@@ -21,7 +21,7 @@ public class EntityBoundingBox extends BoundingBox {
 
     public void setCenter(double x, double y, double z) {
         minCorner.setX(x - hSize / 2);
-        minCorner.setY(y);
+        minCorner.setY(y - vSize / 2);
         minCorner.setZ(z - hSize / 2);
         maxCorner.setX(x + hSize / 2);
         maxCorner.setY(y + vSize);

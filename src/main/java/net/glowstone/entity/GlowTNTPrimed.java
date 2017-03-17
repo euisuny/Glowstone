@@ -34,7 +34,7 @@ public class GlowTNTPrimed extends GlowExplosive implements TNTPrimed {
         } else {
             z = multiplier * mag;
         }
-        setVelocity(new Vector(x, 0.2, z));
+        setVelocity(new Vector(x, 4, z));
         this.source = source;
     }
 
